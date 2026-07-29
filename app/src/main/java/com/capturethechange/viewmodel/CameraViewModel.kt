@@ -13,6 +13,10 @@ enum class OutputMode {
     GRAYSCALE_STATIC
 }
 
+enum class StabilizationMode {
+    OFF, OPTICAL, ELECTRONIC, BOTH
+}
+
 enum class ResolutionLevel(val width: Int, val height: Int) {
     RES_480P(640, 480),
     RES_720P(1280, 720),
@@ -27,11 +31,19 @@ sealed class CaptureState {
 
 class CameraViewModel : ViewModel() {
     val isProMode = MutableStateFlow(false)
+    val isAutoMode = MutableStateFlow(true)
     val isAELocked = MutableStateFlow(false)
     val isAWBLocked = MutableStateFlow(false)
+    val isAFLocked = MutableStateFlow(false) // Auto-Focus Lock
     
-    val noiseThreshold = MutableStateFlow(15f) // 5 to 50
-    val timeFrameMs = MutableStateFlow(500f) // 100 to 2000 ms
+    // Hardware Capabilities
+    val isOisSupported = MutableStateFlow(false)
+    val isEisSupported = MutableStateFlow(false)
+
+    // Core Engine Settings
+    val stabilizationMode = MutableStateFlow(StabilizationMode.OFF)
+    val noiseThreshold = MutableStateFlow(15f) // 1 to 100
+    val timeFrameMs = MutableStateFlow(500f) // 50 to 5000 ms
     
     val outputMode = MutableStateFlow(OutputMode.COLOR_MOTION)
     val resolution = MutableStateFlow(ResolutionLevel.RES_720P)

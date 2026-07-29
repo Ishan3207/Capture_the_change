@@ -18,38 +18,47 @@ object GalleryManager {
         val filename = "CaptureTheChange_${System.currentTimeMillis()}.jpg"
         var uri: Uri? = null
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/CaptureTheChange")
-            }
-
-            val resolver = context.contentResolver
-            uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-            uri?.let {
-                resolver.openOutputStream(it)?.use { outputStream ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/CaptureTheChange")
                 }
-            }
-        } else {
-            // Pre-Android 10
-            val imagesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-            val appDir = File(imagesDir, "CaptureTheChange")
-            if (!appDir.exists()) appDir.mkdirs()
 
-            val imageFile = File(appDir, filename)
-            FileOutputStream(imageFile).use { fos ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                val resolver = context.contentResolver
+                uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+                uri?.let {
+                    resolver.openOutputStream(it)?.use { outputStream ->
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+                    }
+                }
+            } else {
+                // Pre-Android 10
+                val imagesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                val appDir = File(imagesDir, "CaptureTheChange")
+                if (!appDir.exists()) appDir.mkdirs()
+
+                val imageFile = File(appDir, filename)
+                FileOutputStream(imageFile).use { fos ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, fos)
+                }
+                
+                // Register in MediaStore
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                }
+                uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
             }
-            
-            // Register in MediaStore
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
-                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // If we created a URI but failed to write to it, we should ideally delete it.
+            uri?.let { 
+                try { context.contentResolver.delete(it, null, null) } catch (ignored: Exception) {} 
             }
-            uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            return@withContext null
         }
         return@withContext uri
     }

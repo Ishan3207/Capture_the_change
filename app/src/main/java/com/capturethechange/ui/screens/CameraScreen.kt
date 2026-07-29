@@ -17,6 +17,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,8 +34,9 @@ import com.capturethechange.camera.CameraConfigurator
 import com.capturethechange.capture.CaptureManager
 import com.capturethechange.engine.MotionAnalyzer
 import com.capturethechange.ui.components.ControlSlider
-import com.capturethechange.ui.components.ModeToggle
-import com.capturethechange.ui.components.ShutterButton
+import com.capturethechange.ui.components.TopHUD
+import com.capturethechange.ui.components.BottomHUD
+import com.capturethechange.ui.components.CenterOverlay
 import com.capturethechange.viewmodel.CameraViewModel
 import com.capturethechange.viewmodel.CaptureState
 import com.capturethechange.viewmodel.ResolutionLevel
@@ -140,6 +142,9 @@ fun CameraPreviewContent(viewModel: CameraViewModel) {
                     imageAnalyzer
                 )
                 
+                // Check hardware capabilities
+                CameraConfigurator.checkCapabilities(camera, viewModel)
+                
                 coroutineScope.launch {
                     viewModel.isAELocked.collect { locked ->
                         CameraConfigurator.setAELock(camera, locked)
@@ -148,6 +153,16 @@ fun CameraPreviewContent(viewModel: CameraViewModel) {
                 coroutineScope.launch {
                     viewModel.isAWBLocked.collect { locked ->
                         CameraConfigurator.setAWBLock(camera, locked)
+                    }
+                }
+                coroutineScope.launch {
+                    viewModel.isAFLocked.collect { locked ->
+                        CameraConfigurator.setAFLock(camera, locked)
+                    }
+                }
+                coroutineScope.launch {
+                    viewModel.stabilizationMode.collect { mode ->
+                        CameraConfigurator.setStabilizationMode(camera, mode)
                     }
                 }
 
@@ -176,135 +191,118 @@ fun CameraPreviewContent(viewModel: CameraViewModel) {
             )
         }
 
-        // 3. UI Controls
-        val controlsModifier = if (isLandscape) {
-            Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(320.dp)
-                .background(Color.Black.copy(alpha = 0.7f))
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = 12.dp, horizontal = 8.dp)
-        } else {
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.7f))
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = 12.dp, horizontal = 8.dp)
+        // 3. UI Overlay
+        CenterOverlay(viewModel = viewModel)
+
+        val isProcessing = captureState is CaptureState.Processing
+        val onShutterClick = {
+            viewModel.captureState.value = CaptureState.Processing
+            imageCapture.takePicture(
+                executor,
+                object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(image: ImageProxy) {
+                        coroutineScope.launch {
+                            val captureManager = CaptureManager(viewModel, viewModel.deltaEngine)
+                            val uri = captureManager.processAndSaveCapture(
+                                context,
+                                viewModel.frameBuffer,
+                                image
+                            )
+                            if (uri != null) {
+                                viewModel.captureState.value = CaptureState.Saved(uri.toString())
+                            } else {
+                                viewModel.captureState.value = CaptureState.Idle
+                            }
+                        }
+                    }
+                    override fun onError(exception: ImageCaptureException) {
+                        viewModel.captureState.value = CaptureState.Idle
+                        Log.e("CameraScreen", "Capture failed", exception)
+                    }
+                }
+            )
         }
 
-        Column(modifier = controlsModifier) {
-            
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("PRO Mode", color = Color.White, style = MaterialTheme.typography.titleMedium)
-                Switch(
-                    checked = isProMode,
-                    onCheckedChange = { viewModel.isProMode.value = it }
-                )
-            }
+        if (isLandscape) {
+            // Landscape layout
+            TopHUD(viewModel = viewModel, modifier = Modifier.align(Alignment.TopCenter))
             
             if (isProMode) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(bottom = 80.dp, start = 16.dp, end = 16.dp)
+                        .width(300.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(16.dp)
                 ) {
-                    val isAeLocked by viewModel.isAELocked.collectAsState()
-                    val isAwbLocked by viewModel.isAWBLocked.collectAsState()
+                    val threshold by viewModel.noiseThreshold.collectAsState()
+                    val timeFrame by viewModel.timeFrameMs.collectAsState()
+
+                    ControlSlider(
+                        label = "Sensitivity",
+                        value = threshold,
+                        valueRange = 5f..255f,
+                        onValueChange = { viewModel.noiseThreshold.value = it },
+                        formatValue = { "${it.toInt()}" }
+                    )
                     
-                    FilterChip(
-                        selected = isAeLocked,
-                        onClick = { viewModel.isAELocked.value = !isAeLocked },
-                        label = { Text("AE Lock") }
-                    )
-                    FilterChip(
-                        selected = isAwbLocked,
-                        onClick = { viewModel.isAWBLocked.value = !isAwbLocked },
-                        label = { Text("AWB Lock") }
+                    ControlSlider(
+                        label = "Timeframe",
+                        value = timeFrame,
+                        valueRange = 100f..5000f,
+                        onValueChange = { viewModel.timeFrameMs.value = it },
+                        formatValue = { "${it.toInt()} ms" }
                     )
                 }
-                
-                Text("Resolution", color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall)
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    ResolutionLevel.values().forEach { resLevel ->
-                        val isSelected = resolution == resLevel
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.resolution.value = resLevel },
-                            label = { Text(resLevel.name.replace("RES_", "")) },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                ControlSlider(
-                    label = "Sensitivity",
-                    value = threshold,
-                    valueRange = 5f..50f,
-                    onValueChange = { viewModel.noiseThreshold.value = it },
-                    formatValue = { "${it.toInt()}" }
-                )
-                
-                ControlSlider(
-                    label = "Timeframe",
-                    value = timeFrame,
-                    valueRange = 100f..2000f,
-                    onValueChange = { viewModel.timeFrameMs.value = it },
-                    formatValue = { "${it.toInt()} ms" }
-                )
             }
-
-            ModeToggle(
-                currentMode = outputMode,
-                onModeSelected = { viewModel.outputMode.value = it }
+            
+            BottomHUD(
+                viewModel = viewModel, 
+                modifier = Modifier.align(Alignment.BottomCenter),
+                isProcessing = isProcessing,
+                onShutterClick = onShutterClick
             )
+        } else {
+            // Portrait layout
+            TopHUD(viewModel = viewModel, modifier = Modifier.align(Alignment.TopCenter))
+            
+            if (isProMode) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 100.dp, start = 16.dp, end = 16.dp)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(16.dp)
+                ) {
+                    val threshold by viewModel.noiseThreshold.collectAsState()
+                    val timeFrame by viewModel.timeFrameMs.collectAsState()
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Shutter Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ShutterButton(
-                    isProcessing = captureState is CaptureState.Processing,
-                    onClick = {
-                        viewModel.captureState.value = CaptureState.Processing
-                        imageCapture.takePicture(
-                            executor,
-                            object : ImageCapture.OnImageCapturedCallback() {
-                                override fun onCaptureSuccess(image: ImageProxy) {
-                                    coroutineScope.launch {
-                                        val captureManager = CaptureManager(viewModel, viewModel.deltaEngine)
-                                        val uri = captureManager.processAndSaveCapture(
-                                            context, 
-                                            viewModel.frameBuffer, 
-                                            image
-                                        )
-                                        if (uri != null) {
-                                            viewModel.captureState.value = CaptureState.Saved(uri.toString())
-                                        } else {
-                                            viewModel.captureState.value = CaptureState.Idle
-                                        }
-                                    }
-                                }
-                                override fun onError(exception: ImageCaptureException) {
-                                    viewModel.captureState.value = CaptureState.Idle
-                                }
-                            }
-                        )
-                    }
-                )
+                    ControlSlider(
+                        label = "Sensitivity",
+                        value = threshold,
+                        valueRange = 5f..255f,
+                        onValueChange = { viewModel.noiseThreshold.value = it },
+                        formatValue = { "${it.toInt()}" }
+                    )
+                    
+                    ControlSlider(
+                        label = "Timeframe",
+                        value = timeFrame,
+                        valueRange = 100f..5000f,
+                        onValueChange = { viewModel.timeFrameMs.value = it },
+                        formatValue = { "${it.toInt()} ms" }
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            
+            BottomHUD(
+                viewModel = viewModel, 
+                modifier = Modifier.align(Alignment.BottomCenter),
+                isProcessing = isProcessing,
+                onShutterClick = onShutterClick
+            )
         }
     }
 }

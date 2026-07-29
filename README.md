@@ -1,41 +1,47 @@
 # Capture The Change
 
-Capture The Change is an Android camera application that detects motion and differences in the scene, highlighting what has changed in real-time. It features multiple output modes (Color and Grayscale) and a Pro mode for advanced camera controls.
+Capture The Change is an advanced Android camera application designed to detect motion and visual differences in a scene in real-time. By comparing sequential frames, it highlights exactly what has changed, making it perfect for tracking micro-movements, observing changes over time, and isolating motion. 
 
-## Disclaimer
+It features a custom Delta Engine, multiple output modes (Color/Grayscale), and a sleek Pro Mode giving you hardware-level control over the camera sensor.
 
-**IMPORTANT: This project is in a really early stage of development.** Features, APIs, and functionality are subject to rapid change. Bugs and unexpected behavior may occur. Use at your own risk and feel free to contribute!
+## 🛠️ Tech Stack
 
-## Features
+- **Kotlin**: Primary programming language.
+- **Jetpack Compose**: Used exclusively for building the modern, glassmorphic UI.
+- **CameraX**: Powers the core camera functionality, lifecycle management, and frame extraction.
+- **Camera2Interop**: Used to bypass CameraX limitations and tap directly into lower-level hardware APIs (OIS/EIS, AF/AE/AWB locks).
+- **Coroutines & Flow**: Used for state management, asynchronous frame processing, and reactive UI updates.
 
-* Real-time delta motion detection preview
-* Multiple visual modes:
+## ✨ Features
+
+* **Real-Time Delta Engine**: Custom algorithm processing live YUV frames to isolate and highlight motion on the fly.
+* **Pro Camera UI**: A minimalist, glassmorphic interface that exposes only the controls that matter for motion detection.
+* **Hardware-Level Sensor Control**:
+  - **AF Lock (Infinity Override)**: Disabling Auto-Focus locks the lens focus distance to infinity (`0.0f`) to prevent focus breathing from triggering false motion.
+  - **AE & AWB Locks**: Lock Auto-Exposure and Auto-White Balance to ensure consistent frame comparisons.
+  - **Hardware Stabilization**: Seamlessly toggle between Optical Image Stabilization (OIS), Electronic Image Stabilization (EIS), or both, natively communicating with the camera sensor.
+* **Multiple Output Modes**:
   - Color Motion
   - Grayscale Motion
   - Color Static
   - Grayscale Static
-* Pro Mode:
-  - Adjustable motion sensitivity threshold
-  - Configurable timeframe buffer for delta comparisons
-  - Auto-Exposure (AE) and Auto-White Balance (AWB) locking
-  - Resolution selector (480p, 720p, 1080p)
-* Background processing with CameraX
-* Save captures directly to the device gallery
+* **Customizable Tuning**: Adjust the engine's noise sensitivity threshold (5–255) and timeframe buffer (100–5000ms) in real-time via sleek UI sliders.
 
-## Getting Started
+## 🏗️ How It Was Built (In Short)
 
-You have two choices to try out Capture The Change: downloading a pre-built APK or building it from the source code.
+The app was built by combining **CameraX's `ImageAnalysis`** with a custom `MotionAnalyzer`. CameraX efficiently streams raw YUV frames into the analyzer, which calculates the delta (difference) between the current frame and a buffered history frame. 
 
-### Option 1: Download the APK
+Because motion detection requires the camera sensor to be perfectly still and consistent, standard CameraX use cases weren't enough. We implemented **`Camera2Interop`** to bridge down to the native Android Camera2 API. This allowed us to forcefully lock Auto-Focus (AF), Auto-Exposure (AE), and Auto-White Balance (AWB), and manually control hardware Optical/Electronic stabilization (OIS/EIS). 
 
-If you just want to install and use the app without compiling the code:
-1. Go to the Releases page of this GitHub repository.
-2. Download the latest APK file to your Android device.
-3. Open the downloaded file to install it. (You may need to enable "Install from unknown sources" in your Android settings).
+Finally, the UI was completely overhauled using **Jetpack Compose**, implementing a clean, responsive, and data-driven architecture using Kotlin Flows to immediately reflect hardware changes on the screen.
 
-### Option 2: Build from Source
+## ⚠️ Disclaimer
 
-If you want to view the code, modify it, or build it yourself:
+**IMPORTANT: This project is in a really early stage of development.** Features, APIs, and functionality are subject to rapid change. Bugs and unexpected behavior may occur. Use at your own risk and feel free to contribute!
+
+## 🚀 Getting Started
+
+### Build from Source
 
 **Prerequisites:**
 * Android Studio (latest version recommended)
@@ -43,17 +49,16 @@ If you want to view the code, modify it, or build it yourself:
 * Android device running Android 5.0 (API level 21) or higher
 
 **Build Instructions:**
-1. Clone this repository to your local machine using git.
-2. Open Android Studio.
-3. Select **Open an existing Android Studio project** and navigate to the cloned directory.
-4. Allow Gradle to sync the project dependencies.
-5. Connect your Android device.
-6. Click the **Run** button in Android Studio, or run the following command in the terminal to build and install the debug version:
+1. Clone this repository to your local machine.
+2. Open Android Studio and select **Open an existing Android Studio project**.
+3. Allow Gradle to sync the project dependencies.
+4. Connect your Android device.
+5. Click the **Run** button, or run the following command in the terminal to build and install the debug version:
 
 ```bash
 ./gradlew installDebug
 ```
 
-## Contributing
+## 🤝 Contributing
 
 As this is an early-stage project, contributions, issue reports, and pull requests are highly welcome. Please open an issue to discuss proposed changes before submitting large pull requests.
