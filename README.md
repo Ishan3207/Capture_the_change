@@ -4,7 +4,7 @@ Capture The Change is an advanced Android camera application designed to detect 
 
 It features a custom Delta Engine, multiple output modes (Color/Grayscale), and a sleek Pro Mode giving you hardware-level control over the camera sensor.
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 - **Kotlin**: Primary programming language.
 - **Jetpack Compose**: Used exclusively for building the modern, glassmorphic UI.
