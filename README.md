@@ -12,7 +12,7 @@ It features a custom Delta Engine, multiple output modes (Color/Grayscale), and 
 - **Camera2Interop**: Used to bypass CameraX limitations and tap directly into lower-level hardware APIs (OIS/EIS, AF/AE/AWB locks).
 - **Coroutines & Flow**: Used for state management, asynchronous frame processing, and reactive UI updates.
 
-## ✨ Features
+##  Features
 
 * **Real-Time Delta Engine**: Custom algorithm processing live YUV frames to isolate and highlight motion on the fly.
 * **Pro Camera UI**: A minimalist, glassmorphic interface that exposes only the controls that matter for motion detection.
@@ -27,7 +27,7 @@ It features a custom Delta Engine, multiple output modes (Color/Grayscale), and 
   - Grayscale Static
 * **Customizable Tuning**: Adjust the engine's noise sensitivity threshold (5–255) and timeframe buffer (100–5000ms) in real-time via sleek UI sliders.
 
-## 🏗️ How It Was Built (In Short)
+##  How It Was Built
 
 The app was built by combining **CameraX's `ImageAnalysis`** with a custom `MotionAnalyzer`. CameraX efficiently streams raw YUV frames into the analyzer, which calculates the delta (difference) between the current frame and a buffered history frame. 
 
@@ -35,11 +35,11 @@ Because motion detection requires the camera sensor to be perfectly still and co
 
 Finally, the UI was completely overhauled using **Jetpack Compose**, implementing a clean, responsive, and data-driven architecture using Kotlin Flows to immediately reflect hardware changes on the screen.
 
-## ⚠️ Disclaimer
+##  Disclaimer
 
 **IMPORTANT: This project is in a really early stage of development.** Features, APIs, and functionality are subject to rapid change. Bugs and unexpected behavior may occur. Use at your own risk and feel free to contribute!
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Build from Source
 
@@ -59,6 +59,6 @@ Finally, the UI was completely overhauled using **Jetpack Compose**, implementin
 ./gradlew installDebug
 ```
 
-## 🤝 Contributing
+##  Contributing
 
 As this is an early-stage project, contributions, issue reports, and pull requests are highly welcome. Please open an issue to discuss proposed changes before submitting large pull requests.
